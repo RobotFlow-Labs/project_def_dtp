@@ -79,8 +79,13 @@ class BoundaryWalker:
         delta = self.orthogonal_step
         epsilon = self.forward_step
 
-        for _ in range(self.max_iter):
+        for _iteration in range(self.max_iter):
             orthogonal_candidate = self._orthogonal_step(state.trace, original, delta)
+            if any(
+                math.isnan(p[0]) or math.isnan(p[1]) for p in orthogonal_candidate
+            ):
+                delta *= self.orthogonal_decay
+                continue
             bundle, value, is_adversarial = self._query(
                 window, predictor, criterion, target_object_id, objective_name, orthogonal_candidate
             )

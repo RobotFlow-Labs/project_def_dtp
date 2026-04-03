@@ -8,33 +8,31 @@ from collections.abc import Sequence
 Trace = Sequence[Sequence[float]]
 
 
-def _mean_squared_displacement(trace_a: Trace, trace_b: Trace) -> float:
-    if len(trace_a) != len(trace_b):
-        raise ValueError("trace lengths must match")
-    if not trace_a:
-        return 0.0
-    total = 0.0
-    for point_a, point_b in zip(trace_a, trace_b, strict=True):
-        total += (point_a[0] - point_b[0]) ** 2 + (point_a[1] - point_b[1]) ** 2
-    return total / len(trace_a)
+def _euclidean(a: Sequence[float], b: Sequence[float]) -> float:
+    return math.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2)
 
 
 def ade(predict_trace: Trace, future_trace: Trace) -> float:
-    """Average displacement error used in the paper."""
-
-    return _mean_squared_displacement(predict_trace, future_trace)
-
-
-def fde(predict_trace: Trace, future_trace: Trace) -> float:
-    """Final displacement error used in the paper."""
+    """Average Displacement Error — mean Euclidean distance per timestep."""
 
     if len(predict_trace) != len(future_trace):
         raise ValueError("trace lengths must match")
     if not predict_trace:
         return 0.0
-    dx = predict_trace[-1][0] - future_trace[-1][0]
-    dy = predict_trace[-1][1] - future_trace[-1][1]
-    return dx * dx + dy * dy
+    total = sum(
+        _euclidean(p, f) for p, f in zip(predict_trace, future_trace, strict=True)
+    )
+    return total / len(predict_trace)
+
+
+def fde(predict_trace: Trace, future_trace: Trace) -> float:
+    """Final Displacement Error — Euclidean distance at the last timestep."""
+
+    if len(predict_trace) != len(future_trace):
+        raise ValueError("trace lengths must match")
+    if not predict_trace:
+        return 0.0
+    return _euclidean(predict_trace[-1], future_trace[-1])
 
 
 def _normalize(vector: tuple[float, float]) -> tuple[float, float]:
@@ -50,15 +48,19 @@ def directional_offset(
     future_trace: Trace,
     mode: str,
 ) -> float:
-    """Directional objective used for intention misclassification."""
+    """Directional objective used for intention misclassification.
+
+    The heading direction is derived from the last observed position to
+    each future ground-truth point (instantaneous heading per step),
+    matching the reference repo's implementation.
+    """
 
     if not predict_trace or len(predict_trace) != len(future_trace):
         raise ValueError("predict_trace and future_trace must be non-empty and aligned")
     total = 0.0
-    previous = observe_trace[-1]
-    direction_sign = 1.0
+    reference = observe_trace[-1]
     for predicted, future in zip(predict_trace, future_trace, strict=True):
-        direction = _normalize((future[0] - previous[0], future[1] - previous[1]))
+        direction = _normalize((future[0] - reference[0], future[1] - reference[1]))
         tangent = direction
         normal = (-direction[1], direction[0])
         delta = (predicted[0] - future[0], predicted[1] - future[1])
@@ -77,5 +79,5 @@ def directional_offset(
         else:
             raise ValueError(f"unsupported directional objective: {mode}")
         total += direction_sign * (delta[0] * basis[0] + delta[1] * basis[1])
-        previous = future
+        reference = future
     return total / len(predict_trace)

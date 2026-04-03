@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 
 from anima_def_dtp.criteria import AdversarialCriterion
 from anima_def_dtp.data import scenario_window_from_repo_dict
@@ -26,9 +26,16 @@ def healthz() -> HealthResponse:
 
 @app.post("/attack", response_model=AttackResponse)
 def run_attack(req: AttackRequest) -> AttackResponse:
-    window = scenario_window_from_repo_dict(req.window)
+    try:
+        window = scenario_window_from_repo_dict(req.window)
+    except (KeyError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=f"Invalid window: {exc}") from exc
+    if not window.objects:
+        raise HTTPException(status_code=422, detail="Window has no objects")
     predictor = resolve_predictor(req.predictor_name, window)
     target = req.target_object_id or sorted(window.objects)[0]
+    if target not in window.objects:
+        raise HTTPException(status_code=404, detail=f"Object '{target}' not in window")
     engine = get_engine()
     result = engine.run_case(
         dataset_name=req.dataset_name,
@@ -42,9 +49,16 @@ def run_attack(req: AttackRequest) -> AttackResponse:
 
 @app.post("/evaluate", response_model=EvaluateResponse)
 def run_evaluate(req: EvaluateRequest) -> EvaluateResponse:
-    window = scenario_window_from_repo_dict(req.window)
+    try:
+        window = scenario_window_from_repo_dict(req.window)
+    except (KeyError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=f"Invalid window: {exc}") from exc
+    if not window.objects:
+        raise HTTPException(status_code=422, detail="Window has no objects")
     predictor = resolve_predictor(req.predictor_name, window)
     target = req.target_object_id or sorted(window.objects)[0]
+    if target not in window.objects:
+        raise HTTPException(status_code=404, detail=f"Object '{target}' not in window")
     bundle = predictor.predict(window, target_object_id=target)
     value, is_adversarial = AdversarialCriterion(req.dataset_name).evaluate(
         bundle, target, req.objective_name

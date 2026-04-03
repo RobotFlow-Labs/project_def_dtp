@@ -1,0 +1,51 @@
+services:
+  def-dtp:
+    build:
+      context: .
+      dockerfile: Dockerfile.serve
+    ports:
+      - "${ANIMA_SERVE_PORT:-8080}:8080"
+    environment:
+      - ANIMA_MODULE_NAME=def_dtp
+      - ANIMA_MODULE_VERSION=0.1.0
+      - ANIMA_DEVICE=${ANIMA_DEVICE:-auto}
+      - ANIMA_WEIGHT_FORMAT=${ANIMA_WEIGHT_FORMAT:-auto}
+      - ANIMA_HF_REPO=ilessio-aiflowlab/project_def_dtp
+      - HF_TOKEN=${HF_TOKEN:-}
+    volumes:
+      - ${ANIMA_WEIGHT_DIR:-/data/weights}:/data/weights
+    network_mode: host
+    profiles:
+      - serve
+      - api
+
+  def-dtp-gpu:
+    extends:
+      service: def-dtp
+    environment:
+      - ANIMA_DEVICE=cuda
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    profiles:
+      - serve
+
+  def-dtp-ros2:
+    extends:
+      service: def-dtp
+    command: ["python", "-m", "anima_def_dtp.ros2.node"]
+    network_mode: host
+    profiles:
+      - ros2
+
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile.serve
+    command: ["python", "-m", "pytest", "tests/", "-v", "--ignore=tests/test_ros2_contract.py"]
+    profiles:
+      - test

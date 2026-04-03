@@ -1,0 +1,61 @@
+name: def_dtp
+version: 0.1.0
+codename: DEF-DTP
+wave: 7
+domain: defense
+
+paper:
+  title: "DTP-Attack: A decision-based black-box adversarial attack on trajectory prediction"
+  arxiv: "2603.26462"
+  authors:
+    - Jiaxiang Li
+    - Jun Yan
+    - Daniel Watzenig
+    - Huilin Yin
+
+capabilities:
+  - adversarial-attack
+  - trajectory-prediction
+  - black-box-attack
+  - robustness-evaluation
+
+api:
+  port: 8080
+  endpoints:
+    - path: /healthz
+      method: GET
+      description: Health check
+    - path: /attack
+      method: POST
+      description: Run single-case DTP-Attack
+    - path: /evaluate
+      method: POST
+      description: Evaluate attack criterion on a window
+
+docker:
+  image: anima-def-dtp
+  base: anima-serve:jazzy
+  gpu_required: false
+  cuda_optional: true
+
+ros2:
+  node_name: def_dtp
+  topics:
+    subscribe:
+      - name: /def_dtp/window
+        type: TrajectoryWindowMsg
+    publish:
+      - name: /def_dtp/result
+        type: AttackResultMsg
+
+datasets:
+  - name: nuscenes
+    path: /mnt/forge-data/datasets/nuscenes/
+  - name: apolloscape
+    path: /mnt/forge-data/datasets/def_dtp/apolloscape/
+
+models:
+  - name: grip_nuscenes
+    path: /mnt/forge-data/models/def_dtp/grip_nuscenes/
+  - name: trajectron_nuscenes
+    path: /mnt/forge-data/models/def_dtp/trajectron_nuscenes/

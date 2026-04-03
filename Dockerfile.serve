@@ -1,0 +1,23 @@
+ARG BASE_IMAGE=ghcr.io/robotflow-labs/anima-serve:jazzy
+FROM ${BASE_IMAGE}
+
+WORKDIR /app
+
+COPY pyproject.toml .
+RUN uv venv .venv && . .venv/bin/activate && uv sync --no-dev
+
+COPY src/ src/
+COPY configs/ configs/
+COPY scripts/ scripts/
+COPY anima_module.yaml .
+
+ENV PATH="/app/.venv/bin:$PATH"
+ENV ANIMA_MODULE_NAME=def_dtp
+ENV ANIMA_MODULE_VERSION=0.1.0
+ENV ANIMA_SERVE_PORT=8080
+
+EXPOSE 8080
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8080/healthz')"
+
+CMD ["uvicorn", "anima_def_dtp.service.api:app", "--host", "0.0.0.0", "--port", "8080"]

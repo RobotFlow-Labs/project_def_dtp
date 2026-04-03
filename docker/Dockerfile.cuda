@@ -1,0 +1,20 @@
+FROM python:3.11-slim AS base
+
+RUN pip install --no-cache-dir uv
+
+WORKDIR /app
+COPY pyproject.toml .
+RUN uv venv .venv && . .venv/bin/activate && uv sync --no-dev
+
+COPY src/ src/
+COPY configs/ configs/
+COPY scripts/ scripts/
+
+ENV PATH="/app/.venv/bin:$PATH"
+ENV ANIMA_DEF_DTP_BACKEND=cuda
+
+EXPOSE 8080
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8080/healthz')"
+
+CMD ["uvicorn", "anima_def_dtp.service.api:app", "--host", "0.0.0.0", "--port", "8080"]

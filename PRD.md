@@ -152,13 +152,13 @@ The immediate objective is to match the paper's attack behavior and benchmark ra
 ## 12. Build Plan
 | PRD# | Deliverable | Purpose | Status |
 |---|---|---|---|
-| [PRD-01](prds/PRD-01-foundation.md) | Foundation & Config | correct metadata, package, schemas, datasets | ⬜ |
-| [PRD-02](prds/PRD-02-core-model.md) | Core Attack Engine | objectives, criteria, boundary walking | ⬜ |
-| [PRD-03](prds/PRD-03-inference.md) | Inference & Adapters | predictor loading, CLI, attack execution | ⬜ |
-| [PRD-04](prds/PRD-04-evaluation.md) | Evaluation & Reproduction | tables, figures, baselines, parity report | ⬜ |
-| [PRD-05](prds/PRD-05-api-docker.md) | API & Docker | service exposure and reproducible containerization | ⬜ |
-| [PRD-06](prds/PRD-06-ros2-integration.md) | ROS2 Integration | runtime bridge for ANIMA stacks | ⬜ |
-| [PRD-07](prds/PRD-07-production.md) | Production Hardening | campaigns, exports, operational validation | ⬜ |
+| [PRD-01](prds/PRD-01-foundation.md) | Foundation & Config | correct metadata, package, schemas, datasets | ✅ |
+| [PRD-02](prds/PRD-02-core-model.md) | Core Attack Engine | objectives, criteria, boundary walking | ✅ |
+| [PRD-03](prds/PRD-03-inference.md) | Inference & Adapters | predictor loading, CLI, attack execution | ✅ |
+| [PRD-04](prds/PRD-04-evaluation.md) | Evaluation & Reproduction | tables, figures, baselines, parity report | ✅ |
+| [PRD-05](prds/PRD-05-api-docker.md) | API & Docker | service exposure and reproducible containerization | ✅ |
+| [PRD-06](prds/PRD-06-ros2-integration.md) | ROS2 Integration | runtime bridge for ANIMA stacks | ✅ |
+| [PRD-07](prds/PRD-07-production.md) | Production Hardening | campaigns, exports, operational validation | ✅ |
 
 ## 13. Immediate Execution Order
 1. Fix the project identity and config drift.

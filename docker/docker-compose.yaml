@@ -1,0 +1,44 @@
+services:
+  def-dtp-cuda:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.cuda
+    ports:
+      - "8080:8080"
+    environment:
+      - ANIMA_DEF_DTP_BACKEND=cuda
+      - ANIMA_DEF_DTP_TORCH_DEVICE=cuda:0
+    volumes:
+      - /mnt/forge-data/models/def_dtp:/data/models:ro
+      - /mnt/forge-data/datasets/def_dtp:/data/datasets:ro
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    profiles:
+      - cuda
+      - serve
+
+  def-dtp-mlx:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.mlx
+    ports:
+      - "8080:8080"
+    environment:
+      - ANIMA_DEF_DTP_BACKEND=mlx
+    volumes:
+      - /Volumes/AIFlowDev/RobotFlowLabs/datasets/models/def_dtp:/data/models:ro
+    profiles:
+      - mlx
+
+  def-dtp-test:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.cuda
+    command: ["python", "-m", "pytest", "tests/", "-v"]
+    profiles:
+      - test

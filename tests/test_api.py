@@ -58,3 +58,62 @@ def test_attack_returns_adversarial_result() -> None:
     data = resp.json()
     assert data["query_count"] > 0
     assert isinstance(data["perturbation"], list)
+
+
+def test_evaluate_rejects_malformed_window() -> None:
+    resp = client.post(
+        "/evaluate",
+        json={
+            "dataset_name": "apolloscape",
+            "predictor_name": "replay",
+            "objective_name": "ade",
+            "window": {"bad": "data"},
+        },
+    )
+    assert resp.status_code == 422
+
+
+def test_evaluate_rejects_empty_objects() -> None:
+    resp = client.post(
+        "/evaluate",
+        json={
+            "dataset_name": "apolloscape",
+            "predictor_name": "replay",
+            "objective_name": "ade",
+            "window": {
+                "observe_length": 2,
+                "predict_length": 2,
+                "time_step": 0.5,
+                "objects": {},
+            },
+        },
+    )
+    assert resp.status_code == 422
+
+
+def test_attack_rejects_unknown_target() -> None:
+    resp = client.post(
+        "/attack",
+        json={
+            "dataset_name": "apolloscape",
+            "predictor_name": "replay",
+            "objective_name": "ade",
+            "target_object_id": "nonexistent",
+            "window": WINDOW,
+        },
+    )
+    assert resp.status_code == 404
+
+
+def test_evaluate_rejects_invalid_dataset() -> None:
+    resp = client.post(
+        "/evaluate",
+        json={
+            "dataset_name": "fake_dataset",
+            "predictor_name": "replay",
+            "objective_name": "ade",
+            "window": WINDOW,
+        },
+    )
+    # Literal validation rejects at Pydantic level -> 422
+    assert resp.status_code == 422

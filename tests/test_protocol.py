@@ -1,3 +1,5 @@
+import pytest
+
 from anima_def_dtp.evaluation.protocol import ProtocolCase, run_protocol
 from anima_def_dtp.types import AttackResult, ObjectTrack, ScenarioWindow
 
@@ -51,9 +53,5 @@ def test_query_budget_violation_raises() -> None:
             metrics={kwargs["objective_name"]: 3.0},
         )
 
-    try:
+    with pytest.raises(ValueError, match="query budget exceeded"):
         run_protocol([_case()], predictor=object(), attacker=attacker, objectives=["ade"])
-    except ValueError as exc:
-        assert "query budget exceeded" in str(exc)
-    else:  # pragma: no cover
-        raise AssertionError("expected query budget error")

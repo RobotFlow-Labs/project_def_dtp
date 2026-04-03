@@ -8,7 +8,6 @@ and the typed :class:`ScenarioWindow` / :class:`PredictionBundle` models.
 
 from __future__ import annotations
 
-import copy
 from typing import Any
 
 from anima_def_dtp.types import ObjectTrack, PredictionBundle, ScenarioWindow
@@ -125,18 +124,27 @@ def input_data_by_attack_step(
 
     Returns a **new** dict ready for :func:`scenario_window_from_repo_dict`.
     """
-    out = copy.deepcopy(data)
-    out["observe_length"] = obs_length
-    out["predict_length"] = pred_length
-    for obj_id, obj in out.get("objects", {}).items():
+    objects: dict[str, dict[str, Any]] = {}
+    for obj_id, obj in data.get("objects", {}).items():
         trace = obj.get("observe_trace", [])
         start = attack_step
         mid = start + obs_length
         end = mid + pred_length
-        obj["observe_trace"] = trace[start:mid]
-        obj["future_trace"] = trace[mid:end]
+        sliced: dict[str, Any] = {
+            "type": obj.get("type", obj.get("object_type", 0)),
+            "observe_trace": trace[start:mid],
+            "future_trace": trace[mid:end],
+        }
         if "observe_feature" in obj and obj["observe_feature"]:
             feat = obj["observe_feature"]
-            obj["observe_feature"] = feat[start:mid]
-            obj["future_feature"] = feat[mid:end]
-    return out
+            sliced["observe_feature"] = feat[start:mid]
+            sliced["future_feature"] = feat[mid:end]
+        objects[obj_id] = sliced
+    return {
+        "observe_length": obs_length,
+        "predict_length": pred_length,
+        "time_step": data.get("time_step", 0.5),
+        "objects": objects,
+        "map_name": data.get("map_name"),
+        "scene_name": data.get("scene_name"),
+    }

@@ -22,7 +22,11 @@ def build_parser() -> argparse.ArgumentParser:
         required=True,
         help="Path to a JSON manifest listing case files.",
     )
-    parser.add_argument("--predictor", default="replay")
+    parser.add_argument(
+        "--predictor",
+        default="replay",
+        choices=("replay", "grip", "trajectron", "trajectron_map"),
+    )
     parser.add_argument("--dataset", default="nuscenes")
     parser.add_argument("--device", default="auto")
     parser.add_argument("--checkpoint", type=Path, default=None)
@@ -49,10 +53,17 @@ def main(argv: list[str] | None = None) -> int:
 
     manifest = json.loads(args.manifest.read_text())
     results_path = out_dir / "results.jsonl"
+    allowed_root = args.manifest.resolve().parent
 
     with results_path.open("w") as fh:
         for case_entry in manifest:
-            case_path = Path(case_entry["path"])
+            case_path = Path(case_entry["path"]).resolve()
+            if not case_path.is_relative_to(allowed_root):
+                fh.write(
+                    json.dumps({"case": str(case_path), "error": "path outside manifest dir"})
+                    + "\n"
+                )
+                continue
             if not case_path.exists():
                 fh.write(
                     json.dumps({"case": str(case_path), "error": "file not found"}) + "\n"

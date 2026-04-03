@@ -7,6 +7,7 @@ import random
 from dataclasses import dataclass
 
 from anima_def_dtp.criteria import AdversarialCriterion
+from anima_def_dtp.objectives import ade as trace_distance
 from anima_def_dtp.predictors.base import PredictorAdapter
 from anima_def_dtp.types import AttackResult, PredictionBundle, ScenarioWindow
 
@@ -15,22 +16,12 @@ def _copy_trace(trace: list[list[float]]) -> list[list[float]]:
     return [[float(x), float(y)] for x, y in trace]
 
 
-def _distance(trace_a: list[list[float]], trace_b: list[list[float]]) -> float:
-    if len(trace_a) != len(trace_b):
-        raise ValueError("trace lengths must match")
-    if not trace_a:
-        return 0.0
-    total = 0.0
-    for point_a, point_b in zip(trace_a, trace_b, strict=True):
-        total += math.dist(point_a, point_b)
-    return total / len(trace_a)
-
-
 @dataclass
 class BoundaryState:
     trace: list[list[float]]
     query_count: int = 0
     objective_value: float = 0.0
+    is_adversarial: bool = False
 
 
 class BoundaryWalker:
@@ -75,6 +66,7 @@ class BoundaryWalker:
             trace=_copy_trace(state.trace),
             query_count=state.query_count,
             objective_value=state.objective_value,
+            is_adversarial=state.is_adversarial,
         )
         delta = self.orthogonal_step
         epsilon = self.forward_step
@@ -86,38 +78,50 @@ class BoundaryWalker:
             ):
                 delta *= self.orthogonal_decay
                 continue
-            bundle, value, is_adversarial = self._query(
-                window, predictor, criterion, target_object_id, objective_name, orthogonal_candidate
+            _bundle, value, is_adversarial = self._query(
+                window, predictor, criterion, target_object_id, objective_name,
+                orthogonal_candidate,
             )
             state.query_count += 1
             if is_adversarial:
                 state.trace = orthogonal_candidate
                 state.objective_value = value
+                state.is_adversarial = True
             else:
                 delta *= self.orthogonal_decay
 
             forward_candidate = self._forward_step(state.trace, original, epsilon)
-            bundle, value, is_adversarial = self._query(
-                window, predictor, criterion, target_object_id, objective_name, forward_candidate
+            _bundle, value, is_adversarial = self._query(
+                window, predictor, criterion, target_object_id, objective_name,
+                forward_candidate,
             )
             state.query_count += 1
             if is_adversarial:
                 state.trace = forward_candidate
                 state.objective_value = value
-                epsilon = min(self.forward_step, epsilon / max(self.forward_decay, 1e-9))
+                state.is_adversarial = True
+                # On success: grow epsilon to accelerate convergence toward original
+                epsilon = min(epsilon / self.forward_decay, self.forward_step * 2.0)
             else:
                 epsilon *= self.forward_decay
 
-            current_distance = _distance(state.trace, original)
-            best_distance = _distance(best.trace, original)
+            current_distance = trace_distance(state.trace, original)
+            best_distance = trace_distance(best.trace, original)
             if current_distance < best_distance:
                 best = BoundaryState(
                     trace=_copy_trace(state.trace),
                     query_count=state.query_count,
                     objective_value=state.objective_value,
+                    is_adversarial=state.is_adversarial,
                 )
             if epsilon < self.tolerance:
                 break
+
+        # Re-evaluate best trace to get definitive adversarial status (C2 fix)
+        _bundle, final_value, final_adversarial = self._query(
+            window, predictor, criterion, target_object_id, objective_name, best.trace,
+        )
+        best.query_count = state.query_count + 1
 
         perturbation = [
             [adv[0] - base[0], adv[1] - base[1]]
@@ -126,11 +130,11 @@ class BoundaryWalker:
         return AttackResult(
             target_object_id=target_object_id,
             objective=objective_name,
-            is_adversarial=True,
+            is_adversarial=final_adversarial,
             query_count=best.query_count,
-            distance_to_original=_distance(best.trace, original),
+            distance_to_original=trace_distance(best.trace, original),
             perturbation=perturbation,
-            metrics={objective_name: best.objective_value},
+            metrics={objective_name: final_value},
         )
 
     def _random_adversarial_init(
@@ -143,6 +147,7 @@ class BoundaryWalker:
     ) -> BoundaryState:
         original = _copy_trace(window.objects[target_object_id].observe_trace)
         fallback: tuple[list[list[float]], float] | None = None
+        queries = 0
         for _ in range(128):
             candidate = [
                 [
@@ -154,13 +159,24 @@ class BoundaryWalker:
             _, value, is_adversarial = self._query(
                 window, predictor, criterion, target_object_id, objective_name, candidate
             )
+            queries += 1
             if fallback is None or value > fallback[1]:
                 fallback = (_copy_trace(candidate), value)
             if is_adversarial:
-                return BoundaryState(trace=candidate, query_count=1, objective_value=value)
+                return BoundaryState(
+                    trace=candidate,
+                    query_count=queries,
+                    objective_value=value,
+                    is_adversarial=True,
+                )
         if fallback is None:
             raise RuntimeError("failed to initialize attack state")
-        return BoundaryState(trace=fallback[0], query_count=1, objective_value=fallback[1])
+        return BoundaryState(
+            trace=fallback[0],
+            query_count=queries,
+            objective_value=fallback[1],
+            is_adversarial=False,
+        )
 
     def _orthogonal_step(
         self,

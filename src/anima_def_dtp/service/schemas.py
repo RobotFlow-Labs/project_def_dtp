@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 from anima_def_dtp.types import AttackResult
@@ -10,9 +12,9 @@ from anima_def_dtp.types import AttackResult
 class AttackRequest(BaseModel):
     """POST /attack request body."""
 
-    dataset_name: str = "nuscenes"
-    predictor_name: str = "replay"
-    objective_name: str = "ade"
+    dataset_name: Literal["nuscenes", "apolloscape"] = "nuscenes"
+    predictor_name: Literal["replay", "grip", "trajectron", "trajectron_map"] = "replay"
+    objective_name: Literal["ade", "fde", "left", "right", "front", "rear"] = "ade"
     target_object_id: str | None = None
     window: dict  # raw repo-style JSON window
 
@@ -36,9 +38,9 @@ class AttackResponse(BaseModel):
 class EvaluateRequest(BaseModel):
     """POST /evaluate request body."""
 
-    dataset_name: str = "nuscenes"
-    predictor_name: str = "replay"
-    objective_name: str = "ade"
+    dataset_name: Literal["nuscenes", "apolloscape"] = "nuscenes"
+    predictor_name: Literal["replay", "grip", "trajectron", "trajectron_map"] = "replay"
+    objective_name: Literal["ade", "fde", "left", "right", "front", "rear"] = "ade"
     target_object_id: str | None = None
     window: dict
 

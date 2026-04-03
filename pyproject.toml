@@ -3,20 +3,43 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "anima-bishamonten"
+name = "anima-def-dtp"
 version = "0.1.0"
-description = "ANIMA BISHAMONTEN — DTP-Attack: Trajectory Prediction Attack"
-requires-python = ">=3.10"
+description = "ANIMA DEF-DTP — DTP-Attack black-box trajectory prediction attack harness"
+requires-python = ">=3.11,<3.12"
 dependencies = [
-    "torch>=2.0",
-    "numpy",
+    "numpy>=1.26",
     "opencv-python",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.2",
+    "tomli>=2.0.1; python_version < '3.11'",
+    "torch>=2.2",
 ]
 
 [project.optional-dependencies]
-mlx = ["mlx>=0.10", "mlx-nn"]
-dev = ["pytest", "ruff", "mypy"]
+dev = [
+    "mypy>=1.10",
+    "pytest>=8.2",
+    "pytest-cov>=5.0",
+    "ruff>=0.5",
+]
+mlx = [
+    "mlx>=0.17; platform_system == 'Darwin' and platform_machine == 'arm64'",
+]
+cuda = [
+    "nvidia-ml-py>=12.555; platform_system == 'Linux'",
+]
+
+[project.scripts]
+anima-def-dtp = "anima_def_dtp.cli:main"
 
 [tool.ruff]
 line-length = 100
-target-version = "py310"
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
